@@ -25,15 +25,19 @@ jobs:
     runs-on: ubuntu-latest
     steps:
     - uses: actions/checkout@v7
+
     - name: Set up JDK 21
       uses: actions/setup-java@v6
       with:
         distribution: 'temurin'
         java-version: '21'
+
     - name: Set up Gradle
       uses: gradle/actions/setup-gradle@v6
+
     - name: Install GNU gettext
       run: sudo apt-get update && sudo apt-get install -y gettext
+
     - name: Ensure debug keystore exists
       run: |
         mkdir -p "$HOME/.android"
@@ -45,6 +49,7 @@ jobs:
             -keyalg RSA -keysize 2048 -validity 10000 \
             -dname "CN=Android Debug,O=Android,C=US"
         fi
+
     - name: Build with Gradle (signed with debug key)
       run: |
         cd Android
@@ -53,13 +58,32 @@ jobs:
           -Pandroid.injected.signing.store.password=android \
           -Pandroid.injected.signing.key.alias=androiddebugkey \
           -Pandroid.injected.signing.key.password=android
+
+    - name: Locate and rename APKs
+      run: |
+        cd Android/app/build/outputs/apk/release
+        echo "=== Before rename ==="
+        ls -la
+        # Переименовываем любой найденный APK под стабильные имена
+        ARMEABI=$(find . -maxdepth 1 -name "*armeabi-v7a*.apk" | head -n1)
+        ARM64=$(find . -maxdepth 1 -name "*arm64-v8a*.apk" | head -n1)
+        if [ -z "$ARMEABI" ]; then echo "ERROR: armeabi-v7a APK not found"; exit 1; fi
+        if [ -z "$ARM64" ]; then echo "ERROR: arm64-v8a APK not found"; exit 1; fi
+        mv "$ARMEABI" MultiCraft-armeabi-v7a.apk
+        mv "$ARM64" MultiCraft-arm64-v8a.apk
+        echo "=== After rename ==="
+        ls -la
+
     - name: Save armeabi artifact
       uses: actions/upload-artifact@v7
       with:
-        name: MultiCraft-armeabi-v7a.apk
-        path: Android/app/build/outputs/apk/release/app-armeabi-v7a-release-signed.apk
+        name: MultiCraft-armeabi-v7a
+        path: Android/app/build/outputs/apk/release/MultiCraft-armeabi-v7a.apk
+        if-no-files-found: error
+
     - name: Save arm64 artifact
       uses: actions/upload-artifact@v7
       with:
-        name: MultiCraft-arm64-v8a.apk
-        path: Android/app/build/outputs/apk/release/app-arm64-v8a-release-signed.apk
+        name: MultiCraft-arm64-v8a
+        path: Android/app/build/outputs/apk/release/MultiCraft-arm64-v8a.apk
+        if-no-files-found: error
